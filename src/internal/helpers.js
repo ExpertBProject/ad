@@ -44,6 +44,10 @@ module.exports = {
         includeDeleted: false
       };
 
+      if (opts.baseDN) {
+        config.baseDN = opts.baseDN
+      }
+
       this.ad.find(config, (err, results) => {
         if (err) {
           /* istanbul ignore next */
