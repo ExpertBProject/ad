@@ -84,6 +84,18 @@ class AD {
       password: config.pass,
       tlsOptions: {
         rejectUnauthorized: false
+      },
+      attributes: {
+        user: [ 
+          'dn',
+          'userPrincipalName', 'sAMAccountName', /*'objectSID',*/ 'mail',
+          'lockoutTime', 'whenCreated', 'pwdLastSet', 'userAccountControl',
+          'employeeID', 'sn', 'givenName', 'initials', 'cn', 'displayName',
+          'comment', 'description', 'l'
+        ],
+        group: [
+          'dn', 'cn', 'description'
+        ]        
       }
     });
   }
