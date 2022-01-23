@@ -91,7 +91,8 @@ class AD {
           'userPrincipalName', 'sAMAccountName', /*'objectSID',*/ 'mail',
           'lockoutTime', 'whenCreated', 'pwdLastSet', 'userAccountControl',
           'employeeID', 'sn', 'givenName', 'initials', 'cn', 'displayName',
-          'comment', 'description', 'l'
+          'comment', 'description', 'l', 'company', 'name', 'postalCode',
+          'st', 'streetAddress', 'telephoneNumber'
         ],
         group: [
           'dn', 'cn', 'description'
