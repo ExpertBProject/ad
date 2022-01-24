@@ -92,7 +92,7 @@ class AD {
           'lockoutTime', 'whenCreated', 'pwdLastSet', 'userAccountControl',
           'employeeID', 'sn', 'givenName', 'initials', 'cn', 'displayName',
           'comment', 'description', 'l', 'company', 'name', 'postalCode',
-          'st', 'streetAddress', 'telephoneNumber'
+          'st', 'streetAddress', 'telephoneNumber', 'objectGUID'
         ],
         group: [
           'dn', 'cn', 'description'
