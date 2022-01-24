@@ -97,7 +97,11 @@ class AD {
         group: [
           'dn', 'cn', 'description'
         ]        
-      }
+      },
+      entryParser(entry, raw, callback) {
+        if (raw.hasOwnProperty("objectGUID")) { entry.objectGUID = raw.objectGUID; }
+        callback(entry);
+      }      
     });
   }
 
