@@ -27,149 +27,99 @@ module.exports = {
     return await this._findByType(opts, ['user']);
   },
 
-  async addUser(opts) {
+  isCorrectEmail(email) {
+    if ((!email) || ((email) && (email.trim().length === 0))) {
+      return false
+    }
+    const reg = /^[a-zA-Z0-9_\-\.]+@[a-zA-Z0-9_\-\.]+\.[a-zA-Z]{2,5}$/
+    return reg.test(email)
+  },
+
+  normalizeLocation(userLocation) {
+    if ((!userLocation) || ((userLocation) && (userLocation.trim().length === 0))) {
+      return "CN=Users,"
+    }
+    if (!userLocation.endsWith(',')) {
+      userLocation = `${userLocation},`
+    }
+    return userLocation
+  },
+
+  _getRandomIndex(max) {
+    return Math.ceil(Math.random() * max)
+  },
+
+  _getRandomString(source, length) {
+    let result = ""
+
+    for (let i = 0; i < length; i++) {
+      let index = this._getRandomIndex(source.length - 1)
+      result = `${result}${source[index]}`
+    }
+    return result
+  },
+
+  createPassword() {
+    const specials = "!·$%&/()=?¿_-{}*⁺"
+    const digits = "0123456789"
+    const letters = "qwertyuiopasdfghjklñzxcvbnm"
+    const sp = this._getRandomString(specials, 1)
+    const dig = this._getRandomString(digits, 3)
+    const upp = this._getRandomString(letters, 2).toUpperCase()
+    const low = this._getRandomString(letters, 3)
+    return `${sp}${dig}${upp}${low}`
+  },  
+
+  async addUser(userObject, userLocation) {
     return new Promise(async (resolve, reject) => {
-      let {
-        firstName,
-        lastName,
-        commonName,
-        userName,
-        password,
-        email,
-        title,
-        phone,
-        location
-      } = opts;
-
-      let { passwordExpires, enabled } = opts;
-
-      if (commonName) {
-        let cnParts = String(commonName).split(' ');
-        firstName = firstName ? firstName : cnParts[0];
-        if (cnParts.length > 1) {
-          lastName = lastName ? lastName : cnParts[cnParts.length - 1];
+      try {
+        if (!this.isCorrectEmail(userObject.mail)) {
+          reject(`Incorrect email address: ${userObject.mail}`)
         }
-      } else {
-        if (firstName && lastName) {
-          commonName = `${firstName} ${lastName}`;
+        if ((!userObject.sAMAccountName) || ((userObject.sAMAccountName) && (userObject.sAMAccountName.trim().length === 0))) {
+          reject(`sAMAccountName not specified`)
         }
+        let password = this.createPassword()
+        userObject.userPassword = ssha.create(password)
+        userLocation = this.normalizeLocation(userLocation)
+        userObject.objectClass = ["top", "person", "organizationalPerson", "user"]//this.config.defaults.userObjectClass
+        await this._addObject(`CN=${userObject.sAMAccountName}`, userLocation, userObject)
+        await this.setUserPassword(userObject.sAMAccountName, password)
+        await this.enableUser(userObject.sAMAccountName)
+        resolve({
+          userObject,
+          password
+        })
       }
-
-      location = parseLocation(location);
-
-      let valid =
-        email && String(email).indexOf('@') === -1
-          ? 'Invalid email address.'
-          : !commonName
-            ? 'A commonName is required.'
-            : !userName ? 'A userName is required.' : true;
-
-      if (valid !== true) {
-        /* istanbul ignore next */
-        return reject({ error: true, message: valid, httpStatus: 400 });
-      }
-
-      const userObject = {
-        cn: commonName,
-        givenName: firstName,
-        sn: lastName,
-        mail: email,
-        uid: userName,
-        title: title,
-        telephone: phone,
-        userPrincipalName: `${userName}@${this.config.domain}`,
-        sAMAccountName: userName,
-        objectClass: this.config.defaults.userObjectClass,
-        userPassword: ssha.create(password)
-      };
-
-      this._addObject(`CN=${commonName}`, location, userObject)
-        .then(res => {
-          delete this._cache.users[userName];
-          this._cache.all = {};
-          return this.setUserPassword(userName, password);
-        })
-        .then(data => {
-          let expirationMethod =
-            passwordExpires === false
-              ? 'setUserPasswordNeverExpires'
-              : 'enableUser';
-          if (passwordExpires !== undefined) {
-            return this[expirationMethod](userName);
-          }
-        })
-        .then(data => {
-          let enableMethod = enabled === false ? 'disableUser' : 'enableUser';
-          if (enabled !== undefined) {
-            return this[enableMethod](userName);
-          }
-        })
-        .then(data => {
-          delete userObject.userPassword;
-          return resolve(userObject);
-        })
-        .catch(err => {
-          /* istanbul ignore next */
-          const ENTRY_EXISTS = String(err.message).indexOf('ENTRY_EXISTS') > -1;
-          /* istanbul ignore next */
-          if (ENTRY_EXISTS) {
-            /* istanbul ignore next */
-            return reject({
-              message: `User ${userName} already exists.`,
-              httpStatus: 400
-            });
-          }
-          /* istanbul ignore next */
+      catch (err) {
+        const ENTRY_EXISTS = String(err.message).indexOf('ENTRY_EXISTS') > -1;
+        if (ENTRY_EXISTS) {
           return reject({
-            message: `Error creating user: ${err.message}`,
-            httpStatus: 503
+            message: `User ${userObject.sAMAccountName} already exists.`,
+            httpStatus: 400
           });
+        }
+        return reject({
+          message: `Error creating user: ${err.message}`,
+          httpStatus: 503
         });
-    });
+      }
+    })
   },
 
   async updateUser(userName, opts) {
     return new Promise((resolve, reject) => {
       const domain = this.config.domain;
-      const map = {
-        firstName: 'givenName',
-        lastName: 'sn',
-        password: 'unicodePwd',
-        commonName: 'cn',
-        email: 'mail',
-        title: 'title',
-        objectClass: 'objectClass',
-        userName: 'sAMAccountName'
-      };
 
-      let later = [];
-      let operations = [];
-      for (const name in opts) {
-        if (map[name] !== undefined) {
-          let key = map[name];
-          let value =
-            name === 'password' ? encodePassword(opts[name]) : opts[name];
-          if (key !== 'cn') {
-            if (key === 'sAMAccountName') {
-              later.push({
-                sAMAccountName: value
-              });
-              later.push({
-                uid: value
-              });
-              later.push({
-                userPrincipalName: `${value}@${domain}`
-              });
-            } else {
-              operations.push({
-                [key]: value
-              });
-            }
-          }
-        }
+      const properties = Object.getOwnPropertyNames(opts)
+      const operations = []
+      for (let i = 0; i < properties.length; i++) {
+        const key = properties[i]
+        const value = (key === "unicodePwd") ? encodePassword(opts[key]) : opts[key] 
+        operations.push({[key]: value})
+
       }
 
-      operations = operations.concat(later);
       let currUserName = userName;
       const go = () => {
         if (operations.length < 1) {

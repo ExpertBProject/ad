@@ -149,9 +149,9 @@ module.exports = {
       }
       client.add(fullDN, object, async (err, data) => {
         client.unbind();
-        if (error) {
+        if (err) {
           /* istanbul ignore next */
-          return reject(error);
+          return reject(err);
         }
         delete object.userPassword;
         resolve(object);
