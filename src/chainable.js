@@ -46,8 +46,8 @@ module.exports = {
         get: filter => {
           return this.getAllUsers(filter);
         },
-        add: opts => {
-          return this.addUser(opts);
+        add: (opts, location) => {
+          return this.addUser(opts, location);
         }
       };
     }
