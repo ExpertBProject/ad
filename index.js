@@ -77,6 +77,20 @@ class AD {
       }
     };
 
+    let attributes = {
+      user: [
+        'dn',
+        'userPrincipalName', 'sAMAccountName', /*'objectSID',*/ 'mail',
+        'lockoutTime', 'whenCreated', 'pwdLastSet', 'userAccountControl',
+        'employeeID', 'sn', 'givenName', 'initials', 'cn', 'displayName',
+        'comment', 'description', 'l', 'company', 'name', 'postalCode',
+        'st', 'streetAddress', 'telephoneNumber', 'objectGUID'
+      ],
+      group: [
+        'dn', 'cn', 'description'
+      ]
+    }
+
     this.ad = new activedirectory({
       url: config.url,
       baseDN: config.baseDN,
@@ -85,23 +99,11 @@ class AD {
       tlsOptions: {
         rejectUnauthorized: false
       },
-      attributes: {
-        user: [ 
-          'dn',
-          'userPrincipalName', 'sAMAccountName', /*'objectSID',*/ 'mail',
-          'lockoutTime', 'whenCreated', 'pwdLastSet', 'userAccountControl',
-          'employeeID', 'sn', 'givenName', 'initials', 'cn', 'displayName',
-          'comment', 'description', 'l', 'company', 'name', 'postalCode',
-          'st', 'streetAddress', 'telephoneNumber', 'objectGUID'
-        ],
-        group: [
-          'dn', 'cn', 'description'
-        ]        
-      },
+      attributes: config.attributes || attributes,
       entryParser(entry, raw, callback) {
         if (raw.hasOwnProperty("objectGUID")) { entry.objectGUID = raw.objectGUID; }
         callback(entry);
-      }      
+      }
     });
   }
 
